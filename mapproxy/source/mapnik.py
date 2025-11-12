@@ -30,6 +30,7 @@ from mapproxy.source import SourceError
 from mapproxy.client.log import log_request
 from mapproxy.util.py import reraise_exception
 from mapproxy.util.async_ import run_non_blocking
+from pyproj import PROJ_VERSION
 
 try:
     import mapnik
@@ -226,7 +227,11 @@ class MapnikSource(MapLayer):
 
         m = self.map_obj(mapfile)
         m.resize(query.size[0], query.size[1])
-        m.srs = '+init=%s' % str(query.srs.srs_code.lower())
+        # Check major PROJ version and adjust srs definition accordingly
+        if PROJ_VERSION[0] >= 6:
+            m.srs = str(query.srs.srs_code.lower())
+        else:
+            m.srs = '+init=%s' % str(query.srs.srs_code.lower())
         envelope = mapnik.Box2d(*query.bbox)
         m.zoom_to_box(envelope)
         data = None
