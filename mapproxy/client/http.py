@@ -188,12 +188,12 @@ class HTTPClient(object):
         code = None
         result = None
         start_time = time.time()
-        req = None
+        req: urllib2.Request
         try:
             req = urllib2.Request(url, data=data)
         except ValueError as e:
             err = self.handle_url_exception(url, 'URL not correct', e.args[0])
-            reraise_exception(err, sys.exc_info())
+            raise reraise_exception(err, sys.exc_info())
         headers = self.headers | (headers if headers else {})
         for key, value in headers.items():
             req.add_header(key, value)
@@ -207,23 +207,23 @@ class HTTPClient(object):
         except HTTPError as e:
             code = e.code
             err = self.handle_url_exception(url, 'HTTP Error', str(code), response_code=code)
-            reraise_exception(err, sys.exc_info())
+            raise reraise_exception(err, sys.exc_info())
         except URLError as e:
             if isinstance(e.reason, ssl.SSLError):
                 err = self.handle_url_exception(url, 'Could not verify connection to URL', e.reason.args[1])
-                reraise_exception(err, sys.exc_info())
+                raise reraise_exception(err, sys.exc_info())
             try:
-                reason = e.reason.args[1]
+                reason = e.reason.args[1]  # type: ignore
             except (AttributeError, IndexError):
                 reason = e.reason
             err = self.handle_url_exception(url, 'No response from URL', reason)
-            reraise_exception(err, sys.exc_info())
+            raise reraise_exception(err, sys.exc_info())
         except ValueError as e:
             err = self.handle_url_exception(url, 'URL not correct', e.args[0])
-            reraise_exception(err, sys.exc_info())
+            raise reraise_exception(err, sys.exc_info())
         except Exception as e:
             err = self.handle_url_exception(url, 'Internal HTTP error', repr(e))
-            reraise_exception(err, sys.exc_info())
+            raise reraise_exception(err, sys.exc_info())
         else:
             code = getattr(result, 'code', 200)
             if code == 204:
@@ -232,7 +232,7 @@ class HTTPClient(object):
         finally:
             log_request(url, code, result, duration=time.time()-start_time, method=req.get_method())
 
-    def open_image(self, url, data=None):
+    def open_image(self, url: str, data=None) -> ImageSource:
         resp = self.open(url, data=data)
         if 'content-type' in resp.headers:
             if not resp.headers['content-type'].lower().startswith('image'):
@@ -302,13 +302,13 @@ def auth_data_from_url(url):
     return url, (username, password)
 
 
-def open_url(url):
+def open_url(url: str):
     url, (username, password) = auth_data_from_url(url)
     http_client = HTTPClient(url, username, password)
     return http_client.open(url)
 
 
-def retrieve_image(url, client=None):
+def retrieve_image(url: str) -> ImageSource:
     """
     Retrive an image from `url`.
 
